@@ -1,7 +1,7 @@
 import sgmllib
 
-#### start project
-
+#### start project ########################
+#class Parser to parse the article
 class ParserSgm(sgmllib.SGMLParser):
 	def __init__(self, verbose=0):
 
@@ -11,8 +11,8 @@ class ParserSgm(sgmllib.SGMLParser):
 		self.doc_id = 0
 		self.body_count = 0
 		self.body = ""
-		self.in_topic = 0
-		self.topic = ""
+		self.in_title = 0
+		self.title = ""
 
 	def get_docs(self):
 		return self.doc
@@ -30,11 +30,11 @@ class ParserSgm(sgmllib.SGMLParser):
 	# 	self.dateline = 1
 	# def end_dateline(self):
 	# 	self.dateline = 0
-
-	def start_topics(self, attributes):
-		self.in_topic = 1
-	def end_topics(self):
-		self.in_topic = 0
+	# start_ function can identify many tags like topics, body, reuters
+	def start_title(self, attributes):
+		self.in_title = 1
+	def end_title(self):
+		self.in_title = 0
 
 	def start_body(self, attributes):
 		self.body_count = 1
@@ -48,41 +48,22 @@ class ParserSgm(sgmllib.SGMLParser):
 
 	def end_reuters(self):
 
-		self.doc.append({'body': self.body, 'topic': self.topic, 'doc_id': self.doc_id})
+		self.doc.append({'body': self.body, 'title': self.title, 'doc_id': self.doc_id})
 		#print len(self.doc)
-		# self.topics = 0
-		# self.title = 0
+		self.in_title= 0
+		self.title = ""
 		# self.dateline = 0
 		self.body = ""
 		self.body_count = 0
-
+	# deal with all the data between the tags
 	def handle_data(self, data):
 		if self.body_count == 1:
 			self.body += data
-		elif self.in_topic == 1:
-			self.topic += data
+		elif self.in_title == 1:
+			self.title += data
+##############################################
 
-############## Main Program ##################
-import sys
-import string
-import operator
-
-if __name__ == '__main__':
-	total_parsed_article = []
-
-	for x in ["00", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21"]:
-		file_name = "reut2-0" + x + ".sgm"
-		
-		f = open(file_name, "r")
-		s = f.read()
-
-		parser = ParserSgm();
-		parser.parse(s)
-		docs = parser.get_docs()
-		for i in range(0, len(docs)):
-			total_parsed_article.append(docs[i])
-#print total_parsed_article[1]
-
+# collect all the words that is uncecessary in the article
 stopwords = ['a', 'about', 'above', 'across', 'after', 'afterwards']
 stopwords += ['again', 'against', 'all', 'almost', 'alone', 'along']
 stopwords += ['already', 'also', 'although', 'always', 'am', 'among']
@@ -138,10 +119,6 @@ stopwords += ['yours', 'yourself', 'yourselves']
 def removeStopwords(wordlist, stopwords):
     return [w for w in wordlist if w not in stopwords]
 
-
-
-body_example = total_parsed_article[1]["body"]
-
 def removePunctuation(s):
   puncArray = list(string.punctuation)
   for punc in puncArray:
@@ -149,40 +126,72 @@ def removePunctuation(s):
 
   return s
 
-body_example_str = removePunctuation(body_example)
-body_list = body_example_str.split()
-body_list_removed = removeStopwords(body_list, stopwords)
+def removeDigitWords(s):
+	new_s = ""
+	wordlist = s.split()
+	for word in wordlist:
+		if not word.isdigit():
+			new_s += word + " "
+	return new_s
 
-
-#print body_list_removed
-body_freq = []
-
-def makeDictionary():
+def makeDictionary(body_list):
 	dictionary = dict()
-	for w in body_list_removed:
+	for w in body_list:
 		if w not in dictionary:
 	   		dictionary[w] = 1
 	   	else:
 	   		dictionary[w] += 1
 	return dictionary
 
-#print dictionary
-dictionary = makeDictionary()
-sorted_dict = sorted(dictionary.items(), key = lambda k : k[1])
 
-print sorted_dict
+############## Main Program ##################
+import sys
+import string
+import operator
+
+if __name__ == '__main__':
+
+	outputfile = open("output.txt", "w")
 
 
-# def sortFreqDict(freqdict):
-# 	aux = [(key, freqdict[key]) for key in freqdict]
-# 	aux.sort()
-# 	#aux.reverse()
-# 	return aux
+	total_parsed_article = []
+	# go through all the files we have and do preprocessing
+	for x in ["00", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21"]:
+		file_name = "reut2-0" + x + ".sgm"
+		
+		f = open(file_name, "r")
+		s = f.read()
 
-# sorted_dict = sortFreqDict(dictionary)
-# print sorted_dict
-#print ("pairs\n" + str(zip(body_list_removed, body_freq)))
+		parser = ParserSgm();
+		parser.parse(s)
+		docs = parser.get_docs()
+		for i in range(0, len(docs)):
+			total_parsed_article.append(docs[i])
+	#print total_parsed_article[0][]
 
+	for i in range(0, len(total_parsed_article)):
+		body_example = total_parsed_article[i]["body"]
+		body_example = removePunctuation(body_example)
+		body_example = removeDigitWords(body_example)
+
+		body_list = body_example.split()
+		body_list = removeStopwords(body_list, stopwords)
+
+		#print dictionary
+		dictionary = makeDictionary(body_list)
+		sorted_dict = sorted(dictionary.items(), key = lambda k : k[1])
+
+		#print sorted_dict
+
+		outputfile.write(str(total_parsed_article[i]["doc_id"]))    
+		outputfile.write(" ")
+		outputfile.write(str(total_parsed_article[i]["title"]))
+		outputfile.write(" ")
+		outputfile.write(str(sorted_dict))
+		outputfile.write("\n")
+		outputfile.write("\n")
+
+	outputfile.close()
 
 
 
