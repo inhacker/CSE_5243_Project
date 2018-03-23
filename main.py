@@ -181,52 +181,60 @@ def chooseWord(body,n):
 def tf_idf(TF,length,Fre,words):
 	for i in TF:
 		for j in i:
-			i[j]*=log(length/1+Fre[j])
+			i[j]*=log(length/float(1+Fre[j]))
 			if Fre[j]>110 and Fre[j]<5500:
 				if j not in words:
 					words[j]=0
 				words[j]+=i[j]
 
-def construct(source,words,topic,classes):
-	result=[]
+def NBmodel(body,topic,classes):
 	dic=dict()
 	classlen=dict()
 	for n in classes:
-		dic[n]=[0.1 for x in range(0,len(words))]
-		classlen[n]=0.1
-
-	for i in range(0,len(source)):
-		tgt=[]
+		dic[n]=[0.01 for x in range(0,len(words))]
+		classlen[n]=0.01
+	for i in range(0,len(body)):
 		filt=dic[topic[i]]
 		classlen[topic[i]]+=1
-		for j in range(0,len(words)):
-			if words[j] in source[i]:
-				tgt.append(source[i][words[j]])
+		h=body[i]
+		for j in range(0,len(h)):
+			if h[j]!=0:
 				filt[j]+=1
-			else:
-				tgt.append(0)
-		result.append(tgt)
 	for n in dic:
 		divid=classlen[n]
 		for i in range(0,len(dic[n])):
 			dic[n][i]/=divid
-	length=len(source)
+	length=len(body)
 	for n in classlen:
 		classlen[n]/=length
-	return result,dic,classlen
+	return dic,classlen
+
+def construct(source,words):
+	result=[]
+	for dic in source:
+		tgt=[]
+		for j in range(0,len(words)):
+			if words[j] in dic:
+				tgt.append(dic[words[j]])
+			else:
+				tgt.append(0)
+		result.append(tgt)
+	
+	return result
 
 def kNearestNeighbor(k,data,classes,test):
-	result=array([0 for x in ])
-	n=0
+	result=[]
 	for sample in test:
 		candidate=set()
-		arr=array([0 for x in range(0,len(data))])
-		for i in range(0,len(data)):
+		arr=array([0.0 for x in range(0,data.shape[0])])
+		for i in range(0,data.shape[0]):
 			# print(data[i])
 			# print(sample)
-			arr.append([cosine(data[i],sample),classes[i]])
-		temp=sorted(arr,key=lambda k:k[0])[0:k]
-		result.append[vote(temp)]
+			arr[i]=linalg.norm(data[i] - sample)  
+		ind =argpartition(arr,k)[0:k]
+		chosen=classes[ind]
+		dis=arr[ind]
+		result.append(vote(chosen))
 	return result
 
 # def cosine(vector1, vector2):  
@@ -244,22 +252,18 @@ def kNearestNeighbor(k,data,classes,test):
 #         return dot_product / ((normA * normB) ** 0.5) 
 
 def cosine(vector1,vector2):
-	op7=np.dot(vector1,vector2)/(np.linalg.norm(vector1)*(np.linalg.norm(vector2)))  
+	op7=dot(vector1,vector2)/(linalg.norm(vector1)*(linalg.norm(vector2)))  
 	return op7  
 
-def vote(temp):
+def vote(chosen):
 	weight=dict()
-	distance=dict()
-	tgt=temp[0][1]
-	for i in temp:
-		if i[1] not in weight:
-			weight[i[1]]=0
-			distance[i[1]]=0
-		weight[i[1]]+=1
-		distance[i[1]]+=i[0]
-		if i[1]!=tgt and weight[i[1]]>=weight[tgt]:
-			if weight[i[1]]>weight[tgt] or distance[i[1]]<distance[tgt]:
-				tgt=i[1]
+	tgt=chosen[0]
+	for i in range(0,chosen.shape[0]):
+		if chosen[i] not in weight:
+			weight[chosen[i]]=0
+		weight[chosen[i]]+=1
+		if chosen[i]!=tgt and weight[chosen[i]]>weight[tgt]:
+			tgt=chosen[i]
 	return tgt
 
 
@@ -304,7 +308,23 @@ def naiveBayes(dic,test,classlen):
 # 		C=count[word]
 # 		for i in range(0,len(dic[word])):
 
-
+def mix(body,topic):
+	count=dict()
+	trainset=[]
+	testset=[]
+	traintopic=[]
+	testtopic=[]
+	for i in range(0,len(topic)):
+		if topic[i] not in count:
+			count[topic[i]]=0
+		count[topic[i]]+=1
+		if count[topic[i]]%4!=0:
+			trainset.append(body[i])
+			traintopic.append(topic[i])
+		else:
+			testset.append(body[i])
+			testtopic.append(topic[i])
+	return trainset,traintopic,testset,testtopic
 
 def Result(P,sample,classlen):
 	possible=dict()
@@ -313,9 +333,9 @@ def Result(P,sample,classlen):
 	for i in range(0,len(sample)):
 		if sample[i]!=0:
 			for j in P:
-				possible[j]*=P[j][i]
+				possible[j]*=pow(P[j][i],sample[i])
 	for i in P:
-		possible[i]*=pow(classlen[i],1)
+		possible[i]*=pow(classlen[i],2)
 
 	tgt=max(possible.values())
 	pos=''
@@ -332,16 +352,15 @@ import string
 import operator
 from numpy import *
 from math import *
+import time
 
 if __name__ == '__main__':
-
+	start=time.time()
 	outputfile = open("output.txt", "w")
-
-
 	total_parsed_article = []
 	# go through all the files we have and do preprocessing
 	for x in ["00", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21"]:
-		file_name = "reut2-0" + x + ".sgm"
+		file_name = "data/reut2-0" + x + ".sgm"
 		
 		f = open(file_name, "r")
 		s = f.read()
@@ -357,20 +376,21 @@ if __name__ == '__main__':
 	TF_IDF=[]
 	wordFre=dict()
 	for i in range(0, len(total_parsed_article)):
-
+		if total_parsed_article[i]["topics"]!="":
+			topic.append(total_parsed_article[i]["topics"])
+	for i in range(0, len(total_parsed_article)):
 		#print dictionary
-
+		remove_word=list(set(topic))
 		if total_parsed_article[i]["topics"]!="":
 			body_example = total_parsed_article[i]["body"]
 			body_example = removePunctuation(body_example)
 			body_example = removeDigitWords(body_example)
 			body_example = body_example.lower()
 			body_list = body_example.split()
-			body_list = removeStopwords(body_list, stopwords)
+			body_list = removeStopwords(body_list, stopwords+remove_word)
 			dictionary,TFi = makeDictionary(body_list,wordFre)
 			body.append(dictionary)
 			TF_IDF.append(TFi)
-			topic.append(total_parsed_article[i]["topics"])
 
 		#print sorted_dict
 
@@ -384,73 +404,82 @@ if __name__ == '__main__':
 	# outputfile.close()
 	# removeTopic(body,TFi,topic)
 	length=len(body)
+	# print(length)
 	words=dict()
 	tf_idf(TF_IDF,length,wordFre,words)
 	# print(length)
 	# print(len(wordFre))
 	words=sorted(words.items(),key=lambda k:k[1])
 	words.reverse()
-	words=words[0:100]
+	attributes = input("Please input 100 or 500 attributes we want to train: ")
+	words=words[0:attributes]
 	candidate=[]
 	for i in words:
 		candidate.append(i[0])
+	NBsource,NBtraintopic,NBtest,NBtesttopic=mix(body,topic)
+	KNNsource,KNNtraintopic,KNNtest,KNNtesttopic=mix(TF_IDF,topic)
 	# print(TF_IDF[0:10])
-	KNNdata,dic,classlen=construct(body,candidate,topic,set(topic))
+	# time to construct feature vector
+	start=time.time()
+	KNNtraindata=construct(KNNsource,candidate)
+	KNNtestdata=construct(KNNtest,candidate)
+	end = time.time()
+	# print ("KNN model build time: ")
+	# print ("%S" , end - start)
+	NBtraindata=construct(NBsource,candidate)
+	NBtestdata=construct(NBtest,candidate)
+	# print(len(KNNtraindata))
+	# print(len(KNNtestdata))
+	# print(len(NBtraindata))
+	# print(len(NBtestdata))
+	# construct NB model
+	start = time.time()
+	dic,classlen=NBmodel(NBtraindata,NBtraintopic,set(topic))
+	end = time.time()
+	
+	# print ("NB running time: " )
+	# print(end-start)
 
-	print(classlen)
-	pos=7*len(TF_IDF)/10
-	# resultKNN=kNearestNeighbor(5,KNNdata[0:pos],topic[0:pos],KNNdata[pos:])
-	resultNB=naiveBayes(dic,KNNdata[pos:],classlen)
-	true=0
-	false=0
-	cmr=topic[pos:]
-	for i in range(0,len(resultNB)):
-		if resultNB[i]==cmr[i]:
-			true+=1
-		else:
-			false+=1
-	print(true)
-	print(false)
-	# words=set(wordFre.keys())-set(topic)
-	# print(words)
-	# tf,idf,tf_idf=TF_IDF(body)
+	Method = raw_input("Please choose classify method: (NaiveBayes or K-nearest: ")
+	if(Method == "K-nearest"):
+		# # using KNN to test
+		resultKNN=kNearestNeighbor(5,array(KNNtraindata),array(KNNtraintopic),array(KNNtestdata))
+		outputKNN = open("outputKNN_"+str(attributes)+".txt",'w')
+
+		true=0
+		#test accuracy of KNN
+		for i in range(0,len(resultKNN)):
+			outputKNN.write((str(i + 1) + ": " + str(resultKNN[i]) + " " + str(KNNtesttopic[i])))
+			outputKNN.write("\n")
+			if resultKNN[i]==KNNtesttopic[i]:
+				true+=1
+		print("accuracy of KNN("+str(attributes)+" attributes):")
+		print(float(true)/len(KNNtesttopic))
+		outputKNN.close()
+	
+	if(Method == "NaiveBayes"):
+		# using NB to test
+		resultNB=naiveBayes(dic,NBtestdata,classlen)
+		# print (resultNB)
+		# test accuracy of NB
+		outputNB = open("outputNB_"+str(attributes)+".txt", 'w')
+		true=0
+		for i in range(0,len(resultNB)):
+			outputNB.write((str(i + 1) + ": " + str(resultNB[i]) + " " + str(NBtesttopic[i])))
+			outputNB.write("\n")
+			if resultNB[i]==NBtesttopic[i]:
+				true+=1
+		print("accuracy of NB("+str(attributes)+" attributes):")
+		print(float(true)/len(NBtesttopic))
+		outputNB.close()
 	
 
-
-
-# def cutsort(map,len):
-# 	return_result=sorted(map.items(),key=lambda k:k[1]).reverse()[0:len]
-# 	return return_result
-
 	
-
-
-
-
-
-# def gini(data,class,x,label)
-# 	cal=[]
-# 	m=0
-# 	n=0
-# 	for paper in data:
-# 		if class[n++]==label:
-# 			m+=1
-# 			cal.append([paper[x],1])
-# 		else:
-# 			n+=1
-# 			cal.append([paper[x],0])
-					
-
-# 	sorted_cal=sorted(cal,key=lambda x:x[0])
-# 	gini=0.0
-# 	pos=0
-# 	for i in range(0,len(sorted_cal)):
-# 		if sorted_cal[i][2]==1:
-# 			class1+=1
-# 		else:
-# 			class0+=1
 	
-# 	return pos,class1>class0
+	# output result KNN
+
+
+
 
 
 
