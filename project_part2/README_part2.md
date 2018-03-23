@@ -7,6 +7,8 @@ Submission:
 .sgm: data set.
 main.py all codes with comments.
 
+we store the raw data into folder called "data".
+
 After running, you could get the output with featured vectors. That is our result.
 There are total 4 output files. 
 we use different attributes (100 and 500) to train the dataset using Naive Bayes and K-nearest method.
